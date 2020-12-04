@@ -1,8 +1,34 @@
 ﻿#include "version.h"
 
-static float x = 0.0;
-static float y = 0.0;
-static float z = 0.0;
+static float rX = 0.0;
+static float rY = 0.0;
+static float rZ = 0.0;
+
+static std::vector<std::string> masserPhases;
+static std::vector<std::string> secundaPhases;
+
+static std::uint32_t curMasserPhase = 0;
+static std::uint32_t curSecundaPhase = 0;
+
+static bool dumpStats = false;
+
+
+void GetMoonPhases(const CSimpleIniA& a_ini, std::vector<std::string>& a_vec, const char* a_type)
+{
+	CSimpleIniA::TNamesDepend values;
+	a_ini.GetAllValues(a_type, "Path", values);
+	values.sort(CSimpleIniA::Entry::LoadOrder());
+
+	logger::info("{} found : {}", a_type, values.size());
+
+	if (!values.empty()) {
+		a_vec.reserve(values.size());
+		for (auto& value : values) {
+			logger::info("	{}", value.pItem);
+			a_vec.emplace_back(value.pItem);
+		}
+	}
+}
 
 
 bool ReadINI()
@@ -13,24 +39,29 @@ bool ReadINI()
 	}
 
 	CSimpleIniA ini;
-	SI_Error rc = ini.LoadFile(pluginPath.c_str());
+	ini.SetUnicode();
+	ini.SetMultiKey();
 
+	SI_Error rc = ini.LoadFile(pluginPath.c_str());
 	if (rc < 0) {
 		logger::error("Can't load 'po3_SensiblyOrbitingSatellites.ini'");
 		return false;
 	}
 
-	ini.SetUnicode();
+	rX = static_cast<float>(ini.GetDoubleValue("Rotation", "X", 0.0));
+	rY = static_cast<float>(ini.GetDoubleValue("Rotation", "Y", 0.0));
+	rZ = static_cast<float>(ini.GetDoubleValue("Rotation", "Z", 0.0));
 
-	x = static_cast<float>(ini.GetDoubleValue("Settings", "X", 0.0));
-	y = static_cast<float>(ini.GetDoubleValue("Settings", "Y", 0.0));
-	z = static_cast<float>(ini.GetDoubleValue("Settings", "Z", 0.0));
+	dumpStats = ini.GetBoolValue("Settings", "Debug Info", false);
+
+	GetMoonPhases(ini, masserPhases, "Masser Phases");
+	GetMoonPhases(ini, secundaPhases, "Secunda Phases");
 
 	return true;
 }
 
 
-class Moon
+class MoonInit
 {
 public:
 	static void Patch()
@@ -46,12 +77,116 @@ private:
 	{
 		if (a_root) {
 			auto& rot = a_root->local.rotate;
-			rot.SetEulerAnglesXYZ(RE::degToRad(x), RE::degToRad(y), RE::degToRad(z));
-			logger::info("moon root rotation : {} | {} | {}", x, y, z);
+			rot.SetEulerAnglesXYZ(RE::degToRad(rX), RE::degToRad(rY), RE::degToRad(rZ));
+			if (dumpStats) {
+				logger::info("moon root rotation : {} | {} | {}", rX, rY, rZ);
+			}
 		}
-		return _AttachShape(a_moon, a_root);
+		
+		_AttachShape(a_moon, a_root);		
 	}
 	static inline REL::Relocation<decltype(AttachShape)> _AttachShape;
+};
+
+
+class SkyUpdate
+{
+public:
+	static void Patch()
+	{
+		REL::Relocation<std::uintptr_t> skyUpdate{ REL::ID(25682) };
+
+		auto& trampoline = SKSE::GetTrampoline();
+		_GetMoonPhase = trampoline.write_call<5>(skyUpdate.address() + 0x395, GetMoonPhase);
+	}
+
+private:
+	static bool GetMoonPhase(RE::Sky* a_sky)
+	{
+		using PhaseLength = RE::TESClimate::Timing::MoonPhaseLength;
+
+		auto climate = a_sky->currentClimate;
+		if (!climate) {
+			return false;
+		}
+
+		auto phaseLength = to_underlying(*climate->timing.moonPhaseLength);
+		if (!(phaseLength & 63)) {
+			return false;
+		}
+
+		auto daysPassed = static_cast<std::uint32_t>(RE::Calendar::GetSingleton()->GetDaysPassed());
+		std::uint32_t masserPhase = daysPassed % (masserPhases.size() * (phaseLength & 63)) / (phaseLength & 63);
+		std::uint32_t secundaPhase = daysPassed % (secundaPhases.size() * (phaseLength & 63)) / (phaseLength & 63);
+
+		if (masserPhase == curMasserPhase && secundaPhase == curSecundaPhase) {
+			return false;
+		}
+
+		if (dumpStats) {
+			logger::info("days passed {} | masser {} | secunda {}", daysPassed, masserPhase, secundaPhase);
+		}
+
+		curMasserPhase = masserPhase;
+		curSecundaPhase = secundaPhase;
+
+		return true;
+	}
+	static inline REL::Relocation<decltype(GetMoonPhase)> _GetMoonPhase;
+};
+
+
+class MoonUpdate
+{
+public:
+	static void PatchLoadTexture()
+	{
+		REL::Relocation<std::uintptr_t> moonUpdate{ REL::ID(25626) };
+
+		auto& trampoline = SKSE::GetTrampoline();
+		_LoadTexture = trampoline.write_call<5>(moonUpdate.address() + 0x1FE, LoadTexture);
+	}
+
+
+	static void PatchUnkTextureFunc()
+	{
+		REL::Relocation<std::uintptr_t> moonUpdate{ REL::ID(25626) };
+
+		auto& trampoline = SKSE::GetTrampoline();
+		_UnkTextureFunc = trampoline.write_call<5>(moonUpdate.address() + 0x1D4, UnkTextureFunc);
+	}
+
+
+	static void Patch()
+	{
+		PatchLoadTexture();
+		PatchUnkTextureFunc();
+	}
+
+private:
+	static std::string GetMoonPhasePath(const char* a_path)
+	{
+		std::string path = a_path;
+		if (path.find("Masser") != std::string::npos) {
+			path = masserPhases[curMasserPhase];
+		} else {
+			path = secundaPhases[curSecundaPhase];
+		}
+		return path;
+	}
+
+	static void UnkTextureFunc(const char* a_path, RE::NiPointer<RE::NiSourceTexture>& a_texture, std::uint8_t a_unk3, bool a_unk4, std::int32_t a_unk5, bool a_unk6, bool a_unk7)
+	{
+		return _UnkTextureFunc(GetMoonPhasePath(a_path).c_str(), a_texture, a_unk3, a_unk4, a_unk5, a_unk6, a_unk7);
+	}
+	static inline REL::Relocation<decltype(UnkTextureFunc)> _UnkTextureFunc;
+
+
+	static void LoadTexture(const char* a_path, std::uint8_t a_unk1, RE::NiPointer<RE::NiSourceTexture>& a_texture, bool a_unk2)
+	{
+		return _LoadTexture(GetMoonPhasePath(a_path).c_str(), a_unk1, a_texture, a_unk2);
+	}
+	static inline REL::Relocation<decltype(LoadTexture)> _LoadTexture;
 };
 
 
@@ -60,8 +195,14 @@ void OnInit(SKSE::MessagingInterface::Message* a_msg)
 	switch (a_msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
 		{
-			Moon::Patch();
+			MoonInit::Patch();
 			logger::info("patched moon root");
+
+			if (!masserPhases.empty() && !secundaPhases.empty()) {
+				SkyUpdate::Patch();
+				MoonUpdate::Patch();
+				logger::info("patched moon phases");
+			}
 		}
 		break;
 	}
@@ -119,13 +260,12 @@ extern "C" DLLEXPORT bool APIENTRY SKSEPlugin_Load(const SKSE::LoadInterface* a_
 		logger::info("Sensibly Orbiting Satellites loaded");
 
 		SKSE::Init(a_skse);
-		SKSE::AllocTrampoline(1 << 4);
+		SKSE::AllocTrampoline(1 << 7);
 
 		ReadINI();
 
 		auto messaging = SKSE::GetMessagingInterface();
 		if (!messaging->RegisterListener("SKSE", OnInit)) {
-			logger::critical("Failed to register messaging listener!");
 			return false;
 		}
 	} catch (const std::exception& e) {
