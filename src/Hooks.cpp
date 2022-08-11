@@ -27,6 +27,8 @@ namespace Hooks::Rotation
 	{
 		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(25625, 26168), 0xD4 };  //Moon::RecreateGeometry
 		stl::write_thunk_call<Moon_AttachRoot>(target.address());
+
+		logger::info("installing rotation");
 	}
 }
 
@@ -74,6 +76,8 @@ namespace Hooks::Phases
 	{
 		REL::Relocation<std::uintptr_t> func{ RELOCATION_ID(25620, 26158) };
 		stl::asm_replace<Moon_UpdatePhase>(func.address());
+
+		logger::info("installing update phase");
 	}
 }
 
@@ -115,6 +119,67 @@ namespace Hooks::Texture
 
 		stl::write_thunk_call<BSTextureDB_Demand>(target.address() + OFFSET(0x1D4, 0x2C5));
 		stl::write_thunk_call<BSShaderManager_GetTexture>(target.address() + OFFSET(0x1FE, 0x2EF));
+
+		logger::info("installing texture hook");
+	}
+}
+
+namespace Hooks::Position
+{
+	float set_moon_angle(RE::Moon* a_moon)
+	{
+		float daySpeed = a_moon->speed * 4;
+
+		const auto gameDaysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
+		const auto angle = (gameDaysPassed - std::floorf(gameDaysPassed / daySpeed) * daySpeed) * daySpeed * 360.0f;
+
+		a_moon->unkCC = angle;
+
+		return angle;
+	}
+
+	void Install()
+	{
+		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(25626, 26169), OFFSET(0x121, 0x146) };  //Moon::Update
+
+		struct Patch : Xbyak::CodeGenerator
+		{
+			Patch(std::uintptr_t a_func, std::uintptr_t a_target)
+			{
+				Xbyak::Label retnLabel;
+				Xbyak::Label funcLabel;
+
+				mov(rcx, rdi);  //move Moon ptr
+
+				sub(rsp, 0x20);
+				call(ptr[rip + funcLabel]);  // call our function
+				add(rsp, 0x20);
+
+#ifdef SKYRIM_AE
+				movaps(xmm1, xmm0);  // move new angle into old
+#endif
+
+				// orig code
+				mov(eax, dword[rsi + 0x1B0]);
+				jmp(ptr[rip + retnLabel]);
+
+				L(funcLabel);
+				dq(a_func);
+
+				L(retnLabel);
+				dq(a_target + 0x6);
+			}
+		};
+
+		Patch patch(reinterpret_cast<uintptr_t>(set_moon_angle), target.address());
+		patch.ready();
+
+		auto& trampoline = SKSE::GetTrampoline();
+		SKSE::AllocTrampoline(56);
+
+		trampoline.write_branch<6>(target.address(), trampoline.allocate(patch));
+
+		logger::info("hooked position");
 	}
 }
 
@@ -122,12 +187,19 @@ namespace Hooks
 {
 	void Install()
 	{
+		const auto settings = Settings::GetSingleton();
+
+		logger::info("installing hooks");
+
 		Rotation::Install();
 
-		const auto settings = Settings::GetSingleton();
 		if (!settings->masserPhases.empty() && !settings->secundaPhases.empty()) {
 			Phases::Install();
 			Texture::Install();
+		}
+
+		if (settings->hookPosition) {
+			Position::Install();
 		}
 	}
 }
