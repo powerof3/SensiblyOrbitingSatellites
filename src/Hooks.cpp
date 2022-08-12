@@ -69,7 +69,11 @@ namespace Hooks::Phases
 
 			return true;
 		}
+#ifdef SKYRIM_AE
 		static inline constexpr std::size_t size{ 0x95 };
+#else
+		static inline constexpr std::size_t size{ 0x5F };
+#endif
 	};
 
 	void Install()
