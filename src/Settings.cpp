@@ -20,6 +20,9 @@ Settings::Settings()
 
 	detail::get_moon_phases(ini, masserPhases, "Masser Phases");
 	detail::get_moon_phases(ini, secundaPhases, "Secunda Phases");
+	
+	detail::get_value(ini, masserPhaseLength, "Phase Length in Days", "Masser");
+	detail::get_value(ini, secundaPhaseLength, "Phase Length in Days", "Secunda");
 
 	(void)ini.SaveFile(path.c_str());
 }
