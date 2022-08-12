@@ -135,7 +135,7 @@ namespace Hooks::Position
 		float daySpeed = a_moon->speed * 4;
 
 		const auto gameDaysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
-		const auto angle = (gameDaysPassed - std::floorf(gameDaysPassed / daySpeed) * daySpeed) * daySpeed * 360.0f;
+		const auto angle = (gameDaysPassed * daySpeed - std::floorf(gameDaysPassed * daySpeed)) * 360.0f;
 
 		a_moon->unkCC = angle;
 

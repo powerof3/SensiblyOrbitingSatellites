@@ -25,8 +25,8 @@ Moon mod.
 
 ## Building
 ```
-git clone https://github.com/powerof3/SensibleOrbitingSatellites.git
-cd SensibleOrbitingSatellites
+git clone https://github.com/powerof3/SensiblyOrbitingSatellites.git
+cd SensiblyOrbitingSatellites
 ```
 
 ### SSE
