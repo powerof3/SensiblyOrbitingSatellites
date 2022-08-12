@@ -10,8 +10,6 @@ Settings::Settings()
 
 	ini.LoadFile(path.c_str());
 
-	detail::get_value(ini, dumpStats, "Settings", "Print Debug Info");
-
 	detail::get_value(ini, hookPosition, "Settings", "Update Angle Per Frame");
 
 	detail::get_value(ini, rotation.x, "Rotation", "X");
@@ -20,7 +18,7 @@ Settings::Settings()
 
 	detail::get_moon_phases(ini, masserPhases, "Masser Phases");
 	detail::get_moon_phases(ini, secundaPhases, "Secunda Phases");
-	
+
 	detail::get_value(ini, masserPhaseLength, "Phase Length in Days", "Masser");
 	detail::get_value(ini, secundaPhaseLength, "Phase Length in Days", "Secunda");
 

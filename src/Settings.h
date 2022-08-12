@@ -17,12 +17,10 @@ public:
 	std::uint32_t curMasserPhase{ 0 };
 	std::uint32_t curSecundaPhase{ 0 };
 
-	bool dumpStats{ false };
-	
 	bool hookPosition{ true };
-	
-	long masserPhaseLength{ 3 };
-	long secundaPhaseLength{ 3 };
+
+	std::uint32_t masserPhaseLength{ 3 };
+	std::uint32_t secundaPhaseLength{ 3 };
 
 private:
 	struct detail
@@ -32,7 +30,7 @@ private:
 		{
 			if constexpr (std::is_same_v<T, bool>) {
 				a_value = a_ini.GetBoolValue(a_section, a_key, a_value);
-			} else if constexpr (std::is_same_v<T, long>) {
+			} else if constexpr (std::is_integral_v<T>) {
 				a_value = a_ini.GetLongValue(a_section, a_key, a_value);
 			} else if constexpr (std::is_floating_point_v<T>) {
 				a_value = static_cast<float>(a_ini.GetDoubleValue(a_section, a_key, a_value));

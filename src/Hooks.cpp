@@ -12,10 +12,6 @@ namespace Hooks::Rotation
 			if (a_root) {
 				auto rotation = settings->rotation;
 				a_root->local.rotate.SetEulerAnglesXYZ(RE::deg_to_rad(rotation.x), RE::deg_to_rad(rotation.y), RE::deg_to_rad(rotation.z));
-
-				if (settings->dumpStats) {
-					logger::info("moon root rotation : {},{},{}", rotation.x, rotation.y, rotation.z);
-				}
 			}
 
 			func(a_moon, a_root);
@@ -58,10 +54,6 @@ namespace Hooks::Phases
 
 			if (masserPhase == settings->curMasserPhase && secundaPhase == settings->curSecundaPhase) {
 				return false;
-			}
-
-			if (settings->dumpStats) {
-				logger::info("days passed {} | masser {} | secunda {}", daysPassed, masserPhase, secundaPhase);
 			}
 
 			settings->curMasserPhase = masserPhase;
