@@ -53,8 +53,8 @@ namespace Hooks::Phases
 			const auto settings = Settings::GetSingleton();
 
 			auto daysPassed = static_cast<std::uint32_t>(RE::Calendar::GetSingleton()->GetDaysPassed());
-			std::uint32_t masserPhase = daysPassed % (settings->masserPhases.size() * (phaseLength & 0x3F)) / (phaseLength & 0x3F);
-			std::uint32_t secundaPhase = daysPassed % (settings->secundaPhases.size() * (phaseLength & 0x3F)) / (phaseLength & 0x3F);
+			std::uint32_t masserPhase = daysPassed % (settings->masserPhases.size() * settings->masserPhaseLength) / settings->masserPhaseLength;
+			std::uint32_t secundaPhase = daysPassed % (settings->secundaPhases.size() * settings->secundaPhaseLength) / settings->secundaPhaseLength;
 
 			if (masserPhase == settings->curMasserPhase && secundaPhase == settings->curSecundaPhase) {
 				return false;
