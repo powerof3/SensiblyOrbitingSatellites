@@ -51,11 +51,9 @@ namespace Hooks::Phases
 			const auto settings = Settings::GetSingleton();
 
 			const auto daysPassed = static_cast<std::uint32_t>(RE::Calendar::GetSingleton()->GetDaysPassed());
-			if (!settings->masser.UpdatePhase(daysPassed) && !settings->secunda.UpdatePhase(daysPassed)) {
-				return false;
-			}
-
-			return true;
+			bool masserUpdated = settings->masser.UpdatePhase(daysPassed);
+			bool secundaUpdated = settings->secunda.UpdatePhase(daysPassed);
+			return masserUpdated || secundaUpdated;
 		}
 
 #ifdef SKYRIM_AE
@@ -121,10 +119,10 @@ namespace Hooks::Position
 		const auto daySpeed = Settings::GetSingleton()->GetMoon(a_moon)->GetSpeed() * 4.0;
 
 		const auto gameDaysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
+
 		const auto angle = static_cast<float>((gameDaysPassed * daySpeed - std::floor(gameDaysPassed * daySpeed)) * 360.0);
 
 		a_moon->unkCC = angle;
-
 		return angle;
 	}
 
