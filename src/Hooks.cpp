@@ -7,39 +7,23 @@ namespace Hooks::Rotation
 	{
 		static void thunk(RE::Moon* a_moon, RE::NiNode* a_root)
 		{
-			const auto settings = Settings::GetSingleton();
-
 			if (a_root) {
 				a_root->local.rotate.SetEulerAnglesXYZ(
 					RE::deg_to_rad(0.0f),
-					RE::deg_to_rad(90.0f),
-					RE::deg_to_rad(0.0f));
+					RE::deg_to_rad(0.0f),
+					RE::deg_to_rad(90.0f)
+				);
 			}
 
 			func(a_moon, a_root);
 
-			if (auto moonMesh = a_moon->moonMesh; moonMesh) {
-				float x, y, z;
-				moonMesh->local.rotate.ToEulerAnglesXYZ(x, y, z);
-				logger::info("{} (before) : {},{},{}", settings->GetMoon(a_moon)->type, x, y, z);
-
-				// Transpose the matrix
-				for (int i = 0; i < 3; i++) {
-					for (int j = 0; j < i; j++) {
-						std::swap(moonMesh->local.rotate.entry[i][j], moonMesh->local.rotate.entry[j][i]);
-					}
-				}
-
-				// swap columns
-				for (int i = 0; i < 3; i++) {
-					for (int j = 0; j < 3 / 2; j++) {
-						std::swap(moonMesh->local.rotate.entry[i][j], moonMesh->local.rotate.entry[i][3 - j - 1]);
-					}
-				}
-
-				moonMesh->local.rotate.ToEulerAnglesXYZ(x, y, z);
-				logger::info("{} (after) : {},{},{}", settings->GetMoon(a_moon)->type, x, y, z);
-			} 
+			if (auto moonNode = a_moon->moonNode; moonNode) {
+				moonNode->local.rotate.SetEulerAnglesXYZ(
+					RE::deg_to_rad(0.0f),
+					RE::deg_to_rad(-90.0f),
+					RE::deg_to_rad(0.0f)
+				);
+			}
 		}
 		static inline REL::Relocation<decltype(thunk)> func;
 
