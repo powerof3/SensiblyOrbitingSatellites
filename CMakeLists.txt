@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-set(NAME "po3_SensibleOrbitingSatellites")
+set(NAME "po3_SensiblyOrbitingSatellites")
 set(VERSION 1.0.0)
 set(AE_VERSION 1)
 
