@@ -3,28 +3,54 @@
 
 namespace Hooks::Rotation
 {
-	struct Moon_AttachRoot
+	struct Init
 	{
 		static void thunk(RE::Moon* a_moon, RE::NiNode* a_root)
 		{
 			const auto settings = Settings::GetSingleton();
 
 			if (a_root) {
-				auto rotation = settings->rotation;
-				a_root->local.rotate.SetEulerAnglesXYZ(RE::deg_to_rad(rotation.x), RE::deg_to_rad(rotation.y), RE::deg_to_rad(rotation.z));
+				a_root->local.rotate.SetEulerAnglesXYZ(
+					RE::deg_to_rad(0.0f),
+					RE::deg_to_rad(90.0f),
+					RE::deg_to_rad(0.0f));
 			}
 
 			func(a_moon, a_root);
+
+			if (auto moonMesh = a_moon->moonMesh; moonMesh) {
+				float x, y, z;
+				moonMesh->local.rotate.ToEulerAnglesXYZ(x, y, z);
+				logger::info("{} (before) : {},{},{}", settings->GetMoon(a_moon)->type, x, y, z);
+
+				// Transpose the matrix
+				for (int i = 0; i < 3; i++) {
+					for (int j = 0; j < i; j++) {
+						std::swap(moonMesh->local.rotate.entry[i][j], moonMesh->local.rotate.entry[j][i]);
+					}
+				}
+
+				// swap columns
+				for (int i = 0; i < 3; i++) {
+					for (int j = 0; j < 3 / 2; j++) {
+						std::swap(moonMesh->local.rotate.entry[i][j], moonMesh->local.rotate.entry[i][3 - j - 1]);
+					}
+				}
+
+				moonMesh->local.rotate.ToEulerAnglesXYZ(x, y, z);
+				logger::info("{} (after) : {},{},{}", settings->GetMoon(a_moon)->type, x, y, z);
+			} 
 		}
 		static inline REL::Relocation<decltype(thunk)> func;
+
+		static inline constexpr std::size_t idx{ 0x2 };
 	};
 
 	void Install()
 	{
-		REL::Relocation<std::uintptr_t> target{ RELOCATION_ID(25625, 26168), 0xD4 };  //Moon::RecreateGeometry
-		stl::write_thunk_call<Moon_AttachRoot>(target.address());
+		stl::write_vfunc<RE::Moon, Init>();
 
-		logger::info("installing rotation");
+		logger::info("hooked rotation");
 	}
 }
 
@@ -34,33 +60,20 @@ namespace Hooks::Phases
 	{
 		static bool func(RE::Sky* a_sky)
 		{
-			using PhaseLength = RE::TESClimate::Timing::MoonPhaseLength;
-
-			const auto climate = a_sky->currentClimate;
-			if (!climate) {
-				return false;
-			}
-
-			auto phaseLength = stl::to_underlying(climate->timing.moonPhaseLength.get());
-			if ((phaseLength & 0x3F) == 0) {
+			if (const auto climate = a_sky->currentClimate; !climate) {
 				return false;
 			}
 
 			const auto settings = Settings::GetSingleton();
 
-			auto daysPassed = static_cast<std::uint32_t>(RE::Calendar::GetSingleton()->GetDaysPassed());
-			std::uint32_t masserPhase = daysPassed % (settings->masserPhases.size() * settings->masserPhaseLength) / settings->masserPhaseLength;
-			std::uint32_t secundaPhase = daysPassed % (settings->secundaPhases.size() * settings->secundaPhaseLength) / settings->secundaPhaseLength;
-
-			if (masserPhase == settings->curMasserPhase && secundaPhase == settings->curSecundaPhase) {
+			const auto daysPassed = static_cast<std::uint32_t>(RE::Calendar::GetSingleton()->GetDaysPassed());
+			if (!settings->masser.UpdatePhase(daysPassed) && !settings->secunda.UpdatePhase(daysPassed)) {
 				return false;
 			}
 
-			settings->curMasserPhase = masserPhase;
-			settings->curSecundaPhase = secundaPhase;
-
 			return true;
 		}
+
 #ifdef SKYRIM_AE
 		static inline constexpr std::size_t size{ 0x95 };
 #else
@@ -84,10 +97,7 @@ namespace Hooks::Texture
 		static const std::string& get_moon_phase(const char* a_path)
 		{
 			const auto settings = Settings::GetSingleton();
-			if (string::icontains(a_path, "Masser")) {
-				return settings->masserPhases[settings->curMasserPhase];
-			}
-			return settings->secundaPhases[settings->curSecundaPhase];
+			return settings->GetMoon(a_path)->GetPhase();
 		}
 	};
 
@@ -124,7 +134,7 @@ namespace Hooks::Position
 {
 	float set_moon_angle(RE::Moon* a_moon)
 	{
-		float daySpeed = a_moon->speed * 4;
+		const float daySpeed = static_cast<float>(Settings::GetSingleton()->GetMoon(a_moon)->GetSpeed() * 4.0);
 
 		const auto gameDaysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
 		const auto angle = (gameDaysPassed * daySpeed - std::floorf(gameDaysPassed * daySpeed)) * 360.0f;
@@ -188,14 +198,11 @@ namespace Hooks
 		logger::info("installing hooks");
 
 		Rotation::Install();
+		Position::Install();
 
-		if (!settings->masserPhases.empty() && !settings->secundaPhases.empty()) {
+		if (settings->masser.HasPhases() && settings->secunda.HasPhases()) {
 			Phases::Install();
 			Texture::Install();
-		}
-
-		if (settings->hookPosition) {
-			Position::Install();
 		}
 	}
 }
