@@ -9,6 +9,7 @@ public:
 
 		const std::string& GetPhase();
 		double GetSpeed() const;
+		double GetOffset() const;
 		bool HasPhases() const;
 
 		bool UpdatePhase(std::uint32_t a_daysPassed);
@@ -17,6 +18,7 @@ public:
 
 	private:
 		double speed{ 0.0 };
+		double offset{ 0.0 };
 
 		std::vector<std::string> phases{};
 		std::uint32_t phaseLength{ 3 };

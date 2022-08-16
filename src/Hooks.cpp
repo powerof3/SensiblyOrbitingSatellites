@@ -116,11 +116,14 @@ namespace Hooks::Position
 {
 	float set_moon_angle(RE::Moon* a_moon)
 	{
-		const auto daySpeed = Settings::GetSingleton()->GetMoon(a_moon)->GetSpeed() * 4.0;
+		const auto moon = Settings::GetSingleton()->GetMoon(a_moon);
+		const auto daySpeed = moon->GetSpeed() * 4.0;
+		const auto offset = moon->GetOffset();
 
 		const auto gameDaysPassed = RE::Calendar::GetSingleton()->GetDaysPassed();
+		const auto daysOffset = gameDaysPassed + offset;
 
-		const auto angle = static_cast<float>((gameDaysPassed * daySpeed - std::floor(gameDaysPassed * daySpeed)) * 360.0);
+		const auto angle = static_cast<float>((daysOffset * daySpeed - std::floor(daysOffset * daySpeed)) * 360.0);
 
 		a_moon->unkCC = angle;
 		return angle;
