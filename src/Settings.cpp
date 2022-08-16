@@ -5,6 +5,7 @@ void Settings::Moon::LoadData(std::string a_type, const CSimpleIniA& a_ini)
 	type = std::move(a_type);
 
     detail::get_value(a_ini, speed, type.c_str(), "Speed");
+	detail::get_value(a_ini, offset, type.c_str(), "Days Offset");
 	detail::get_value(a_ini, phaseLength, type.c_str(), "Phase Length in Days");
 
 	CSimpleIniA::TNamesDepend values;
@@ -30,6 +31,11 @@ const std::string& Settings::Moon::GetPhase()
 double Settings::Moon::GetSpeed() const
 {
 	return speed;
+}
+
+double Settings::Moon::GetOffset() const
+{
+	return offset;
 }
 
 bool Settings::Moon::HasPhases() const
