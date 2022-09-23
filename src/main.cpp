@@ -13,9 +13,9 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 	v.PluginVersion(Version::MAJOR);
 	v.PluginName("Sensible Orbiting Satellites");
 	v.AuthorName("powerofthree");
-	v.UsesAddressLibrary(true);
+	v.UsesAddressLibrary();
 	v.CompatibleVersions({ SKSE::RUNTIME_LATEST });
-
+	v.UsesNoStructs();
 	return v;
 }();
 #else
