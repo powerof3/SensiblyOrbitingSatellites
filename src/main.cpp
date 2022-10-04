@@ -11,7 +11,7 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_message)
 extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 	SKSE::PluginVersionData v;
 	v.PluginVersion(Version::MAJOR);
-	v.PluginName("Sensible Orbiting Satellites");
+	v.PluginName("Moons And Stars");
 	v.AuthorName("powerofthree");
 	v.UsesAddressLibrary();
 	v.CompatibleVersions({ SKSE::RUNTIME_LATEST });
@@ -22,7 +22,7 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
 {
     a_info->infoVersion = SKSE::PluginInfo::kVersion;
-	a_info->name = "Sensible Orbiting Satellites";
+	a_info->name = "Moons And Stars";
 	a_info->version = Version::MAJOR;
 
 	if (a_skse->IsEditor()) {
@@ -71,7 +71,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 {
 	InitializeLog();
 
-	logger::info("loaded");
+	logger::info("Game version : {}", a_skse->RuntimeVersion().string());
 
 	SKSE::Init(a_skse);
 
